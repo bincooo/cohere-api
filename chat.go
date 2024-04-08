@@ -38,35 +38,35 @@ type Message struct {
 
 type Chat struct {
 	temperature   float32
-	maxTokens     int32
+	maxTokens     int
 	model         string
-	seed          int32
+	seed          int
 	token         string
 	proxies       string
 	isChat        bool
 	stopSequences []string
-	topK          int32
+	topK          int
 }
 
 func (c *Chat) Proxies(proxies string) {
 	c.proxies = proxies
 }
 
-func (c *Chat) MaxTokens(maxTokens int32) {
+func (c *Chat) MaxTokens(maxTokens int) {
 	if maxTokens < 1 {
 		return
 	}
 	c.maxTokens = maxTokens
 }
 
-func (c *Chat) TopK(topK int32) {
+func (c *Chat) TopK(topK int) {
 	if topK < 1 {
 		return
 	}
 	c.topK = topK
 }
 
-func (c *Chat) Seed(seed int32) {
+func (c *Chat) Seed(seed int) {
 	if seed < 1 {
 		return
 	}
