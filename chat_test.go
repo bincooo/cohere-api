@@ -20,7 +20,7 @@ const (
 )
 
 func TestChat(t *testing.T) {
-	chat := New(token, 1.0, -1, COMMAND_R_PLUS)
+	chat := New(token, 1.0, COMMAND_R_PLUS, true)
 	//chat.Proxies("http://127.0.0.1:7890")
 	timeout, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -36,6 +36,48 @@ func TestChat(t *testing.T) {
 		},
 	}
 	ch, err := chat.Reply(timeout, pMessages, system, "1+1=?")
+	if err != nil {
+		t.Fatal(err)
+	}
+	echo(ch, t)
+}
+
+func TestGen(t *testing.T) {
+	chat := New(token, 1.0, COMMAND_R_PLUS, false)
+	//chat.Proxies("http://127.0.0.1:7890")
+	chat.TopK(100)
+	chat.MaxTokens(13724)
+	chat.StopSequences([]string{
+		"user:",
+		"assistant:",
+		"system:",
+	})
+	timeout, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	messages := []map[string]string{
+		{
+			"role":    "system",
+			"content": system,
+		},
+		{
+			"role":    "user",
+			"content": "你好",
+		},
+		{
+			"role":    "assistant",
+			"content": "主人你好喵♡～",
+		},
+		{
+			"role":    "user",
+			"content": "1+2=?",
+		},
+		{
+			"role":    "assistant",
+			"content": "",
+		},
+	}
+	ch, err := chat.Reply(timeout, nil, "", MergeMessages(messages))
 	if err != nil {
 		t.Fatal(err)
 	}

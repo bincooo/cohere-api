@@ -37,32 +37,74 @@ type Message struct {
 }
 
 type Chat struct {
-	temperature float32
-	model       string
-	seed        int32
-	token       string
-	proxies     string
+	temperature   float32
+	maxTokens     int32
+	model         string
+	seed          int32
+	token         string
+	proxies       string
+	isChat        bool
+	stopSequences []string
+	topK          int32
 }
 
 func (c *Chat) Proxies(proxies string) {
 	c.proxies = proxies
 }
 
-func New(token string, temperature float32, seed int32, model string) Chat {
+func (c *Chat) MaxTokens(maxTokens int32) {
+	if maxTokens < 1 {
+		return
+	}
+	c.maxTokens = maxTokens
+}
+
+func (c *Chat) TopK(topK int32) {
+	if topK < 1 {
+		return
+	}
+	c.topK = topK
+}
+
+func (c *Chat) Seed(seed int32) {
+	if seed < 1 {
+		return
+	}
+	c.seed = seed
+}
+
+func (c *Chat) StopSequences(stopSequences []string) {
+	if len(stopSequences) == 0 {
+		return
+	}
+	c.stopSequences = stopSequences
+}
+
+func New(token string, temperature float32, model string, isChat bool) Chat {
 	return Chat{
-		token:       token,
-		temperature: temperature,
-		model:       model,
-		seed:        seed,
+		token:         token,
+		temperature:   temperature,
+		model:         model,
+		seed:          -1,
+		topK:          40,
+		maxTokens:     4096,
+		isChat:        isChat,
+		stopSequences: make([]string, 0),
 	}
 }
 
-func (c *Chat) Reply(ctx context.Context, pMessages []Message, system, message string) (chan string, error) {
-	payload := c.makePayload(pMessages, system, message)
-	response, err := common.New().
+func (c *Chat) Reply(ctx context.Context, pMessages []Message, system, message string) (ch chan string, err error) {
+	var pathname = "/v1/chat"
+	var response *http.Response
+	payload := c.makePayload(pMessages, system, message, c.isChat)
+	if !c.isChat {
+		pathname = "/v1/generate"
+	}
+
+	response, err = common.New().
 		Proxies(c.proxies).
 		Context(ctx).
-		URL(fmt.Sprintf("%s/v1/chat", baseUrl)).
+		URL(baseUrl+pathname).
 		Method(http.MethodPost).
 		Header("Authorization", "Bearer "+c.token).
 		Header("Accept-Language", "en-US,en;q=0.9").
@@ -71,6 +113,7 @@ func (c *Chat) Reply(ctx context.Context, pMessages []Message, system, message s
 		JsonHeader().
 		SetBody(payload).
 		Do()
+
 	if err != nil {
 		return nil, err
 	}
@@ -79,31 +122,68 @@ func (c *Chat) Reply(ctx context.Context, pMessages []Message, system, message s
 		return nil, errors.New(response.Status)
 	}
 
-	ch := make(chan string)
+	ch = make(chan string)
 	go resolve(ch, response)
 	return ch, nil
 }
 
-func (c *Chat) makePayload(pMessages []Message, system string, message string) (payload map[string]interface{}) {
+func (c *Chat) makePayload(pMessages []Message, system string, message string, isChat bool) (payload map[string]interface{}) {
 	if c.temperature < 0 {
 		c.temperature = 0.95
 	}
 
-	payload = map[string]interface{}{
-		"chat_history":      pMessages,
-		"connectors":        make([]string, 0),
-		"message":           message,
-		"model":             c.model,
-		"preamble":          system,
-		"prompt_truncation": "OFF",
-		"stream":            true,
-		"temperature":       c.temperature,
+	if isChat {
+		payload = map[string]interface{}{
+			"chat_history":      pMessages,
+			"connectors":        make([]string, 0),
+			"message":           message,
+			"model":             c.model,
+			"preamble":          system,
+			"prompt_truncation": "OFF",
+			"stream":            true,
+			"temperature":       c.temperature,
+		}
+
+		if c.seed > 0 {
+			payload["seed"] = c.seed
+		}
+
+	} else {
+		payload = map[string]interface{}{
+			"k":             c.topK,
+			"model":         c.model,
+			"max_tokens":    c.maxTokens,
+			"prompt":        message,
+			"raw_prompting": false,
+			"stream":        true,
+			"temperature":   c.temperature,
+		}
 	}
 
-	if c.seed > 0 {
-		payload["seed"] = c.seed
+	if len(c.stopSequences) > 0 {
+		payload["stop_sequences"] = c.stopSequences
 	}
 	return payload
+}
+
+func MergeMessages(messages []map[string]string) string {
+	if len(messages) == 0 {
+		return ""
+	}
+
+	lastRole := ""
+	buf := new(bytes.Buffer)
+
+	for _, message := range messages {
+		if lastRole == "" || lastRole != message["role"] {
+			lastRole = message["role"]
+			buf.WriteString(fmt.Sprintf("\n%s: %s", message["role"], message["content"]))
+			continue
+		}
+		buf.WriteString(fmt.Sprintf("\n%s", message["content"]))
+	}
+
+	return buf.String()
 }
 
 func resolve(ch chan string, response *http.Response) {
