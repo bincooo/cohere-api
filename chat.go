@@ -49,7 +49,7 @@ type ToolCall struct {
 }
 
 type ToolResult struct {
-	Call    []interface{} `json:"call"`
+	Call    interface{}   `json:"call"`
 	Outputs []interface{} `json:"outputs"`
 }
 
