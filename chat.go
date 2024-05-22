@@ -37,10 +37,20 @@ type Message struct {
 	Message string
 }
 
-type Tool struct {
+type ToolObject struct {
+	Tools   []ToolCall
+	Results []ToolResult
+}
+
+type ToolCall struct {
 	Name        string                 `json:"name"`
 	Description string                 `json:"description"`
 	Param       map[string]interface{} `json:"parameter_definitions"`
+}
+
+type ToolResult struct {
+	Call    []interface{} `json:"call"`
+	Outputs []interface{} `json:"outputs"`
 }
 
 type Chat struct {
@@ -100,10 +110,10 @@ func New(token string, temperature float32, model string, isChat bool) Chat {
 	}
 }
 
-func (c *Chat) Reply(ctx context.Context, pMessages []Message, system, message string, tools []Tool) (ch chan string, err error) {
+func (c *Chat) Reply(ctx context.Context, pMessages []Message, system, message string, toolObject ToolObject) (ch chan string, err error) {
 	var pathname = "/v1/chat"
 	var response *http.Response
-	payload := c.makePayload(pMessages, system, message, c.isChat, tools)
+	payload := c.makePayload(pMessages, system, message, c.isChat, toolObject)
 	if !c.isChat {
 		pathname = "/v1/generate"
 	}
@@ -134,7 +144,7 @@ func (c *Chat) Reply(ctx context.Context, pMessages []Message, system, message s
 	return ch, nil
 }
 
-func (c *Chat) makePayload(pMessages []Message, system string, message string, isChat bool, tools []Tool) (payload map[string]interface{}) {
+func (c *Chat) makePayload(pMessages []Message, system string, message string, isChat bool, toolObject ToolObject) (payload map[string]interface{}) {
 	if c.temperature < 0 {
 		c.temperature = 0.95
 	}
@@ -149,7 +159,8 @@ func (c *Chat) makePayload(pMessages []Message, system string, message string, i
 			"prompt_truncation": "OFF",
 			"stream":            true,
 			"temperature":       c.temperature,
-			"tools":             tools,
+			"tools":             toolObject.Tools,
+			"tool_results":      toolObject.Results,
 		}
 
 		if c.seed > 0 {
