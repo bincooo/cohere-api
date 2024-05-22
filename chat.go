@@ -24,11 +24,12 @@ const (
 )
 
 type block struct {
-	Finished bool   `json:"is_finished"`
-	Event    string `json:"event_type"`
-	Id       string `json:"generation_id"`
-	Text     string `json:"text"`
-	Reason   string `json:"finish_reason"`
+	Finished  bool          `json:"is_finished"`
+	Event     string        `json:"event_type"`
+	Id        string        `json:"generation_id"`
+	Text      string        `json:"text"`
+	Reason    string        `json:"finish_reason"`
+	ToolCalls []interface{} `json:"tool_calls"`
 }
 
 type Message struct {
@@ -229,6 +230,15 @@ func resolve(ch chan string, response *http.Response) {
 		if b.Event == "text-generation" {
 			ch <- "text: " + b.Text
 			continue
+		}
+
+		if b.Event == "tool-calls-generation" {
+			marshal, e := json.Marshal(b.ToolCalls)
+			if e != nil {
+				ch <- fmt.Sprintf("error: %v", e)
+				return
+			}
+			ch <- fmt.Sprintf("tool: %s", marshal)
 		}
 	}
 }
