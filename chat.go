@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	baseUrl = "https://api.cohere.ai"
+	baseUrl = "https://api.cohere.com"
 
 	COMMAND               = "command"
 	COMMAND_LIGHT         = "command-light"
@@ -34,6 +34,12 @@ type block struct {
 type Message struct {
 	Role    string
 	Message string
+}
+
+type Tool struct {
+	Name        string                 `json:"name"`
+	Description string                 `json:"description"`
+	Param       map[string]interface{} `json:"parameter_definitions"`
 }
 
 type Chat struct {
@@ -93,10 +99,10 @@ func New(token string, temperature float32, model string, isChat bool) Chat {
 	}
 }
 
-func (c *Chat) Reply(ctx context.Context, pMessages []Message, system, message string) (ch chan string, err error) {
+func (c *Chat) Reply(ctx context.Context, pMessages []Message, system, message string, tools []Tool) (ch chan string, err error) {
 	var pathname = "/v1/chat"
 	var response *http.Response
-	payload := c.makePayload(pMessages, system, message, c.isChat)
+	payload := c.makePayload(pMessages, system, message, c.isChat, tools)
 	if !c.isChat {
 		pathname = "/v1/generate"
 	}
@@ -127,7 +133,7 @@ func (c *Chat) Reply(ctx context.Context, pMessages []Message, system, message s
 	return ch, nil
 }
 
-func (c *Chat) makePayload(pMessages []Message, system string, message string, isChat bool) (payload map[string]interface{}) {
+func (c *Chat) makePayload(pMessages []Message, system string, message string, isChat bool, tools []Tool) (payload map[string]interface{}) {
 	if c.temperature < 0 {
 		c.temperature = 0.95
 	}
@@ -142,6 +148,7 @@ func (c *Chat) makePayload(pMessages []Message, system string, message string, i
 			"prompt_truncation": "OFF",
 			"stream":            true,
 			"temperature":       c.temperature,
+			"tools":             tools,
 		}
 
 		if c.seed > 0 {
