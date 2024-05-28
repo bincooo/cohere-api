@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/bincooo/cohere-api/common"
+	"github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 )
@@ -226,6 +227,9 @@ func resolve(ch chan string, response *http.Response) {
 		if prefix {
 			continue
 		}
+
+		logrus.Tracef("--------- ORIGINAL MESSAGE ---------")
+		logrus.Tracef("%s", buf.Bytes())
 
 		var b block
 		if err = json.Unmarshal(buf.Bytes(), &b); err != nil {
