@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/bincooo/emit.io"
 	"github.com/sirupsen/logrus"
@@ -140,10 +139,6 @@ func (c *Chat) Reply(ctx context.Context, pMessages []Message, system, message s
 		return nil, err
 	}
 
-	if response.StatusCode != http.StatusOK {
-		return nil, errors.New(response.Status)
-	}
-
 	ch = make(chan string)
 	go resolve(ch, response)
 	return ch, nil
@@ -212,6 +207,7 @@ func MergeMessages(messages []map[string]string) string {
 
 func resolve(ch chan string, response *http.Response) {
 	defer close(ch)
+	defer response.Body.Close()
 
 	buf := new(bytes.Buffer)
 	r := bufio.NewReader(response.Body)
