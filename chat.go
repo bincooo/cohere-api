@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/bincooo/cohere-api/common"
+	"github.com/bincooo/emit.io"
 	"github.com/sirupsen/logrus"
 	"io"
 	"net/http"
@@ -64,6 +64,7 @@ type Chat struct {
 	isChat        bool
 	stopSequences []string
 	topK          int
+	client        *emit.Session
 }
 
 func (c *Chat) Proxies(proxies string) {
@@ -98,6 +99,10 @@ func (c *Chat) StopSequences(stopSequences []string) {
 	c.stopSequences = stopSequences
 }
 
+func (c *Chat) Client(client *emit.Session) {
+	c.client = client
+}
+
 func New(token string, temperature float32, model string, isChat bool) Chat {
 	return Chat{
 		token:         token,
@@ -119,7 +124,7 @@ func (c *Chat) Reply(ctx context.Context, pMessages []Message, system, message s
 		pathname = "/v1/generate"
 	}
 
-	response, err = common.New().
+	response, err = emit.ClientBuilder(c.client).
 		Proxies(c.proxies).
 		Context(ctx).
 		URL(baseUrl+pathname).
@@ -128,10 +133,9 @@ func (c *Chat) Reply(ctx context.Context, pMessages []Message, system, message s
 		Header("Accept-Language", "en-US,en;q=0.9").
 		Header("Origin", "https://dashboard.cohere.com").
 		Header("Referer", "https://dashboard.cohere.com/").
-		JsonHeader().
-		SetBody(payload).
-		Do()
-
+		JHeader().
+		Body(payload).
+		DoC(emit.Status(http.StatusOK), emit.IsSTREAM)
 	if err != nil {
 		return nil, err
 	}

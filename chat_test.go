@@ -35,7 +35,7 @@ func TestChat(t *testing.T) {
 			Message: "主人你好喵♡～",
 		},
 	}
-	ch, err := chat.Reply(timeout, pMessages, system, "1+1=?")
+	ch, err := chat.Reply(timeout, pMessages, system, "1+1=?", ToolObject{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +77,7 @@ func TestGen(t *testing.T) {
 			"content": "",
 		},
 	}
-	ch, err := chat.Reply(timeout, nil, "", MergeMessages(messages))
+	ch, err := chat.Reply(timeout, nil, "", MergeMessages(messages), ToolObject{})
 	if err != nil {
 		t.Fatal(err)
 	}
