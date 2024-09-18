@@ -21,6 +21,8 @@ const (
 	COMMAND_NIGHTLY       = "command-nightly"
 	COMMAND_R             = "command-r"
 	COMMAND_R_PLUS        = "command-r-plus"
+	COMMAND_R_202408      = "command-r-08-2024"
+	COMMAND_R_PLUS_202408 = "command-r-plus-08-2024"
 )
 
 type block struct {
@@ -63,6 +65,7 @@ type Chat struct {
 	isChat        bool
 	stopSequences []string
 	topK          int
+	safety        string
 	client        *emit.Session
 }
 
@@ -89,6 +92,10 @@ func (c *Chat) Seed(seed int) {
 		return
 	}
 	c.seed = seed
+}
+
+func (c *Chat) Safety(safety string) {
+	c.safety = safety
 }
 
 func (c *Chat) StopSequences(stopSequences []string) {
@@ -144,7 +151,7 @@ func (c *Chat) Reply(ctx context.Context, pMessages []Message, system, message s
 	return ch, nil
 }
 
-func (c *Chat) makePayload(pMessages []Message, system string, message string, isChat bool, toolObject ToolObject) (payload map[string]interface{}) {
+func (c *Chat) makePayload(pMessages []Message, system, message string, isChat bool, toolObject ToolObject) (payload map[string]interface{}) {
 	if c.temperature < 0 {
 		c.temperature = 0.95
 	}
@@ -165,6 +172,10 @@ func (c *Chat) makePayload(pMessages []Message, system string, message string, i
 
 		if c.seed > 0 {
 			payload["seed"] = c.seed
+		}
+
+		if c.safety != "" {
+			payload["safety_mode"] = c.safety
 		}
 
 	} else {
